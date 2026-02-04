@@ -15,11 +15,16 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
+        // Criar um utilizador de teste (pode ser substituído por seeders específicos)
         User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // Executa o seeder de configurações iniciais (percent_sinal, dias_min_pagamento_total)
+        $this->call(\Database\Seeders\SettingsSeeder::class);
+
+        // Executa o seeder de utilizadores (ADMIN, FUNCIONARIO, PROPRIETARIO, CLIENTE)
+        $this->call(\Database\Seeders\UserSeeder::class);
     }
 }
