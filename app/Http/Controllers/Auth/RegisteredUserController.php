@@ -24,27 +24,39 @@ class RegisteredUserController extends Controller
 
     /**
      * Handle an incoming registration request.
-     *
-     * @throws \Illuminate\Validation\ValidationException
      */
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        // ERS: por padrão, todo novo registo é CLIENTE e ativo
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'role' => User::ROLE_CLIENTE,
+            'ativo' => true,
         ]);
 
         event(new Registered($user));
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        // Auditoria do registo
+        $this->audit(
+            'register',
+            'users',
+            $user->id,
+            ['email' => $user->email, 'role' => $user->role],
+            $request->ip(),
+            $user->id
+        );
+
+        // Redirecionar por role (cliente)
+        return redirect()->intended(route('cliente.dashboard', absolute: false));
     }
 }

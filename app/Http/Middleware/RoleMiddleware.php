@@ -6,43 +6,45 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-/**
- * Middleware simples para RBAC baseado no campo `users.role`.
- * Pode ser usado com parâmetros: ->middleware(RoleMiddleware::class . ':ADMIN')
- * ou para múltiplos papéis: RoleMiddleware::class . ':ADMIN|FUNCIONARIO'
- */
 class RoleMiddleware
 {
-    /**
-     * Handle an incoming request.
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Closure  $next
-     * @param  mixed ...$roles
-     */
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
+        // 1) Sessão expirada / não autenticado -> login (HTML) ou 401 (API/AJAX)
         $user = $request->user();
-
-        // Se não estiver autenticado, devolve 403 (rota deverá usar também 'auth')
         if (! $user) {
-            abort(403, 'Acesso não autorizado.');
+            if ($request->expectsJson()) {
+                abort(401, 'Não autenticado.');
+            }
+            return redirect()->route('login');
         }
 
-        // Se não forem especificados roles, negar (defensivo)
-        if (empty($roles)) {
-            abort(403, 'Papel não especificado.');
+        // 2) Conta desativada -> 403
+        if (isset($user->ativo) && ! $user->ativo) {
+            abort(403, 'Conta desativada.');
         }
 
-        // Normaliza papéis permitidos (pode vir como 'ADMIN|FUNCIONARIO' numa string única)
+        // 3) Papel do utilizador (fonte principal: papel; fallback: role)
+        $papel = $user->papel ?? $user->role ?? null;
+
+        // 4) Se não tem papel -> 403 (conta mal configurada)
+        if (! $papel) {
+            abort(403, 'Conta sem perfil definido.');
+        }
+
+        // 5) Normaliza papéis exigidos (aceita "ADMIN" ou "ADMIN,FUNCIONARIO")
         $allowed = [];
         foreach ($roles as $r) {
-            foreach (explode('|', $r) as $part) {
-                $allowed[] = trim($part);
+            foreach (explode(',', $r) as $part) {
+                $part = trim($part);
+                if ($part !== '') {
+                    $allowed[] = $part;
+                }
             }
         }
 
-        // Verifica se o papel do utilizador está nos permitidos
-        if (! in_array($user->role, $allowed, true)) {
+        // 6) Verifica se o papel do user está na lista
+        if (! in_array($papel, $allowed, true)) {
             abort(403, 'Permissão insuficiente.');
         }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,19 +27,26 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = $request->user();
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        $user->fill($request->validated());
+
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
         }
 
-        $request->user()->save();
+        $user->save();
 
-        return Redirect::route('profile.edit')->with('status', __('messages.profile_updated'));
+        return Redirect::route('profile.edit')
+            ->with('status', __('messages.profile_updated'));
     }
 
     /**
      * Delete the user's account.
+     *
+     * ERS / Segurança:
+     * - Não permitir apagar o último ADMIN ativo
+     * - Registar auditoria do auto-delete (quando permitido)
      */
     public function destroy(Request $request): RedirectResponse
     {
@@ -47,6 +55,32 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
+
+        // Bloquear apagar se for o último ADMIN ativo
+        if ($user->role === User::ROLE_ADMIN) {
+            $adminsAtivos = User::query()
+                ->where('role', User::ROLE_ADMIN)
+                ->where('ativo', true)
+                ->count();
+
+            if ($adminsAtivos <= 1) {
+                return Redirect::route('profile.edit')
+                    ->withErrors(['userDeletion' => __('messages.cannot_delete_last_admin')]);
+            }
+        }
+
+        // Auditoria (antes do logout e antes do delete)
+        $this->audit(
+            'user_self_delete',
+            'users',
+            $user->id,
+            [
+                'email' => $user->email,
+                'role'  => $user->role,
+            ],
+            $request->ip(),
+            $user->id
+        );
 
         Auth::logout();
 

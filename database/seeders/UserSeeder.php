@@ -13,24 +13,50 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
+        $defaultPassword = 'Password@123'; // muda se quiseres
+
         User::updateOrCreate(
             ['email' => 'admin@sgse.test'],
-            ['name' => 'Admin SGSE', 'password' => Hash::make('password'), 'role' => 'ADMIN', 'ativo' => true]
+            [
+                'name' => 'Admin SGSE',
+                'password' => Hash::make($defaultPassword),
+                'papel' => 'ADMIN',
+                'role' => 'ADMIN',
+                'ativo' => true,
+            ]
         );
 
         User::updateOrCreate(
             ['email' => 'func@sgse.test'],
-            ['name' => 'Funcionario SGSE', 'password' => Hash::make('password'), 'role' => 'FUNCIONARIO', 'ativo' => true]
+            [
+                'name' => 'Funcionario SGSE',
+                'password' => Hash::make($defaultPassword),
+                'papel' => 'FUNCIONARIO',
+                'role' => 'FUNCIONARIO',
+                'ativo' => true,
+            ]
         );
 
         User::updateOrCreate(
             ['email' => 'owner@sgse.test'],
-            ['name' => 'Proprietario SGSE', 'password' => Hash::make('password'), 'role' => 'PROPRIETARIO', 'ativo' => true]
+            [
+                'name' => 'Proprietario SGSE',
+                'password' => Hash::make($defaultPassword),
+                'papel' => 'PROPRIETARIO',
+                'role' => 'PROPRIETARIO',
+                'ativo' => true,
+            ]
         );
 
         User::updateOrCreate(
             ['email' => 'client@sgse.test'],
-            ['name' => 'Cliente SGSE', 'password' => Hash::make('password'), 'role' => 'CLIENTE', 'ativo' => true]
+            [
+                'name' => 'Cliente SGSE',
+                'password' => Hash::make($defaultPassword),
+                'papel' => 'CLIENTE',
+                'role' => 'CLIENTE',
+                'ativo' => true,
+            ]
         );
     }
 }

@@ -3,43 +3,62 @@
 namespace App\Http\Controllers\Cliente;
 
 use App\Http\Controllers\Controller;
+use App\Models\Payment;
 use App\Models\Reservation;
-use App\Services\AuditService;
 use App\Services\PaymentService;
 use App\Services\ReservationService;
 use App\Services\SettingsService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 /**
- * Controller para pagamentos simulados (CLIENTE).
- * Regras:
- * - Se faltarem menos de dias_min_pagamento_total dias para o evento, não permitir pagamento por sinal.
- * - Pagamento SINAL marca reserva como CONFIRMADA (se não houver conflito).
- * - Pagamento TOTAL marca reserva como PAGA.
+ * Pagamentos simulados (CLIENTE)
+ *
+ * ERS:
+ * - Apenas o cliente dono da reserva pode pagar
+ * - Se faltar menos de dias_min_pagamento_total dias, não permite SINAL
+ * - SINAL -> CONFIRMADA (se não houver conflito)
+ * - TOTAL -> PAGA
+ * - Auditoria de pagamentos
  */
 class PaymentController extends Controller
 {
-    protected $paymentService;
-    protected $reservationService;
-    protected $settings;
-    protected $audit;
+    public function __construct(
+        protected PaymentService $paymentService,
+        protected ReservationService $reservationService,
+        protected SettingsService $settings,
+    ) {}
 
-    public function __construct(PaymentService $paymentService, ReservationService $reservationService, SettingsService $settings, AuditService $audit)
+    /**
+     * Guard simples (evita depender de Policy se ainda não tiveres)
+     */
+    private function assertClienteOwner(Request $request, Reservation $reservation): void
     {
-        $this->paymentService = $paymentService;
-        $this->reservationService = $reservationService;
-        $this->settings = $settings;
-        $this->audit = $audit;
+        $user = $request->user();
+
+        if (! $user || ! method_exists($user, 'isCliente') || ! $user->isCliente()) {
+            abort(403);
+        }
+
+        if ((int) $reservation->client_user_id !== (int) $user->id) {
+            abort(403);
+        }
+
+        if (property_exists($user, 'ativo') && ! $user->ativo) {
+            abort(403);
+        }
     }
 
-    public function create(Reservation $reservation)
+    public function create(Request $request, Reservation $reservation)
     {
-        // Apenas o cliente dono da reserva pode pagar
-        $this->authorize('view', $reservation);
+        $this->assertClienteOwner($request, $reservation);
 
-        // Se já estiver cancelada, não permitir pagamento
-        if ($reservation->estado === 'CANCELADA') {
+        // Não permitir pagamento se já estiver cancelada ou paga
+        if ($reservation->estado === Reservation::ESTADO_CANCELADA) {
             abort(400, 'Reserva cancelada.');
+        }
+        if ($reservation->estado === Reservation::ESTADO_PAGA) {
+            abort(400, 'Reserva já está paga.');
         }
 
         $diasMin = (int) $this->settings->get('dias_min_pagamento_total', 30);
@@ -50,53 +69,108 @@ class PaymentController extends Controller
 
     public function store(Request $request, Reservation $reservation)
     {
-        $this->authorize('view', $reservation);
+        $this->assertClienteOwner($request, $reservation);
 
-        $tipo = $request->input('tipo'); // 'SINAL' ou 'TOTAL'
-        $valor = (float) $request->input('valor');
+        // Não permitir pagamento se já estiver cancelada ou paga
+        if ($reservation->estado === Reservation::ESTADO_CANCELADA) {
+    return redirect()
+        ->route('cliente.dashboard')
+        ->with('error', 'Reserva cancelada. Não é possível pagar.');
+        }
+
+        if ($reservation->estado === Reservation::ESTADO_PAGA) {
+            return redirect()
+                ->route('cliente.dashboard')
+                ->with('info', 'Esta reserva já está paga.');
+        }
+
+
+        $data = $request->validate([
+            'tipo' => ['required', 'in:' . Payment::TIPO_SINAL . ',' . Payment::TIPO_TOTAL],
+            'valor' => ['required', 'numeric', 'min:0.01'],
+            'metodo' => ['nullable', 'string', 'max:50'],
+            'referencia' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $tipo = $data['tipo'];
+        $valor = (float) $data['valor'];
 
         $diasMin = (int) $this->settings->get('dias_min_pagamento_total', 30);
         $percent = (float) $this->settings->get('percent_sinal', 20);
 
-        $dataEvento = \Carbon\Carbon::parse($reservation->data_evento);
-        $diasFaltam = $dataEvento->diffInDays(now());
+        $today = now()->startOfDay();
+        $dataEvento = Carbon::parse($reservation->data_evento)->startOfDay();
 
-        if ($tipo === 'SINAL') {
+        // diff com sinal (se evento já passou, fica negativo)
+        $diasFaltam = $today->diffInDays($dataEvento, false);
+
+        // Se evento já passou, não aceitar pagamentos
+        if ($diasFaltam < 0) {
+            return back()->withErrors(['tipo' => 'Data do evento já passou.'])->withInput();
+        }
+
+        if ($tipo === Payment::TIPO_SINAL) {
+
+            // Se já está dentro da janela mínima, não permite SINAL (deve pagar TOTAL)
             if ($diasFaltam < $diasMin) {
-                return back()->withErrors(['tipo' => __('messages.deposit_not_allowed')]);
+                return back()->withErrors(['tipo' => __('messages.deposit_not_allowed')])->withInput();
             }
 
-            // Verifica conflitos: não pode existir outra reserva CONFIRMADA/PAGA para mesma venue/data
+            // Não permitir confirmar se a data já foi ocupada por CONFIRMADA/PAGA
             if ($this->reservationService->hasConfirmedOrPaidReservation($reservation->venue_id, $reservation->data_evento)) {
-                return back()->withErrors(['tipo' => __('messages.date_taken')]);
+                return back()->withErrors(['tipo' => __('messages.date_taken')])->withInput();
             }
 
-            $payment = $this->paymentService->registerPayment($reservation, 'SINAL', $valor, $request->input('metodo') ?? 'simulado', $request->input('referencia'));
+            $payment = $this->paymentService->registerPayment(
+                $reservation,
+                Payment::TIPO_SINAL,
+                $valor,
+                $data['metodo'] ?? 'simulado',
+                $data['referencia'] ?? null
+            );
 
-            // Marcar reserva como CONFIRMADA e guardar percent/valor_sinal
-            $reservation->estado = 'CONFIRMADA';
+            // Atualiza reserva
+            $reservation->estado = Reservation::ESTADO_CONFIRMADA;
             $reservation->valor_sinal = $valor;
-            $reservation->percent_sinal = $percent;
+            $reservation->percent_sinal = (int) $percent;
             $reservation->save();
 
-            $this->audit->log($request->user(), 'create', 'payments', $payment->id, ['tipo'=>'SINAL','valor'=>$valor,'reservation_id'=>$reservation->id], $request);
+            $this->audit(
+                'payment_create',
+                'payments',
+                $payment->id,
+                ['tipo' => Payment::TIPO_SINAL, 'valor' => $valor, 'reservation_id' => $reservation->id],
+                $request->ip()
+            );
 
-            return redirect()->route('cliente.dashboard')->with('status', __('messages.deposit_registered'));
+            return redirect()
+                ->route('cliente.dashboard')
+                ->with('status', __('messages.deposit_registered'));
         }
 
-        if ($tipo === 'TOTAL') {
-            // Regista pagamento total
-            $payment = $this->paymentService->registerPayment($reservation, 'TOTAL', $valor, $request->input('metodo') ?? 'simulado', $request->input('referencia'));
+        // TOTAL
+        $payment = $this->paymentService->registerPayment(
+            $reservation,
+            Payment::TIPO_TOTAL,
+            $valor,
+            $data['metodo'] ?? 'simulado',
+            $data['referencia'] ?? null
+        );
 
-            // Marcar reserva como PAGA
-            $reservation->estado = 'PAGA';
-            $reservation->save();
+        // Marca como paga (ou podes usar $reservation->isTotalQuitado() se quiseres exigir valor_total)
+        $reservation->estado = Reservation::ESTADO_PAGA;
+        $reservation->save();
 
-            $this->audit->log($request->user(), 'create', 'payments', $payment->id, ['tipo'=>'TOTAL','valor'=>$valor,'reservation_id'=>$reservation->id], $request);
+        $this->audit(
+            'payment_create',
+            'payments',
+            $payment->id,
+            ['tipo' => Payment::TIPO_TOTAL, 'valor' => $valor, 'reservation_id' => $reservation->id],
+            $request->ip()
+        );
 
-            return redirect()->route('cliente.dashboard')->with('status', __('messages.payment_registered'));
-        }
-
-        return back()->withErrors(['tipo' => __('messages.invalid_payment_type')]);
+        return redirect()
+            ->route('cliente.dashboard')
+            ->with('status', __('messages.payment_registered'));
     }
 }

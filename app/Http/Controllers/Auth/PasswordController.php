@@ -10,19 +10,31 @@ use Illuminate\Validation\Rules\Password;
 
 class PasswordController extends Controller
 {
-    /**
-     * Update the user's password.
-     */
     public function update(Request $request): RedirectResponse
     {
+        $user = $request->user();
+
+        // Segurança ERS: não permitir alteração se utilizador estiver inativo
+        if (isset($user->ativo) && ! $user->ativo) {
+            abort(403, 'Conta desativada.');
+        }
+
         $validated = $request->validateWithBag('updatePassword', [
             'current_password' => ['required', 'current_password'],
             'password' => ['required', Password::defaults(), 'confirmed'],
         ]);
 
-        $request->user()->update([
+        $user->update([
             'password' => Hash::make($validated['password']),
         ]);
+
+        $this->audit(
+            'password_update',
+            'auth',
+            $user->id,
+            ['email' => $user->email, 'role' => $user->role],
+            $request->ip()
+        );
 
         return back()->with('status', __('messages.password_updated'));
     }
