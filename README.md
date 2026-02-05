@@ -1,3 +1,126 @@
+# SGSE — Sistema de Gestão e Marcação de Eventos (MVP)
+
+Projeto MVP desenvolvido em Laravel (Blade + Tailwind). Este README descreve como configurar e executar localmente no Laragon (MySQL) para desenvolvimento.
+
+Idioma: Português (PT-PT)
+Moeda: Kz
+
+Pré-requisitos
+- PHP 8.x compatível com a versão do Laravel do projecto
+- Composer
+- Node.js + npm
+- MySQL (Laragon)
+- Git
+
+Configuração rápida (Laragon)
+
+1. Clonar o repositório
+
+```powershell
+cd C:\laragon\www
+git clone <repo-url> sgse
+cd sgse
+```
+
+2. Instalar dependências PHP e JS
+
+```powershell
+composer install
+npm install
+npm run dev
+```
+
+3. Configurar `.env`
+
+Copie o ficheiro de exemplo e ajuste as credenciais MySQL do Laragon (por defeito: user `root`, sem password ou conforme a sua configuração):
+
+```powershell
+cp .env.example .env
+php artisan key:generate
+
+# Exemplo de variáveis DB (ajuste conforme Laragon):
+# DB_CONNECTION=mysql
+# DB_HOST=127.0.0.1
+# DB_PORT=3306
+# DB_DATABASE=sgse
+# DB_USERNAME=root
+# DB_PASSWORD=
+```
+
+Crie a base de dados `sgse` no MySQL (via HeidiSQL/PhpMyAdmin/Laragon DB manager).
+
+4. Migrations e Seeders
+
+```powershell
+php artisan migrate
+php artisan db:seed
+```
+
+Isto executa as migrations e insere seeds essenciais (configurações e utilizadores de exemplo).
+
+5. Storage link (para imagens)
+
+```powershell
+php artisan storage:link
+```
+
+6. PDF (opcional)
+
+Para gerar relatórios em PDF recomenda-se instalar `barryvdh/laravel-dompdf`:
+
+```powershell
+composer require barryvdh/laravel-dompdf
+```
+
+7. Scheduler (cancelamento automático)
+
+O job `CheckPendingDeposits` é agendado no kernel para correr diariamente. Em desenvolvimento pode executar:
+
+```powershell
+php artisan schedule:work
+```
+
+8. Contas de teste (seeders criam):
+
+- admin@sgse.test / password (role ADMIN)
+- func@sgse.test / password (role FUNCIONARIO)
+- owner@sgse.test / password (role PROPRIETARIO)
+- client@sgse.test / password (role CLIENTE)
+
+9. Comandos úteis
+
+```powershell
+# Rodar o servidor local
+php artisan serve
+
+# Executar testes
+php artisan test
+vendor\bin\phpunit
+
+# Executar compilação assets
+npm run dev
+npm run build
+```
+
+10. Notas de desenvolvimento
+- Regras de negócio e comentários importantes estão documentados nos Services (`app/Services`) e nos FormRequests.
+- Pagamentos são simulados — não existe integração com gateway real.
+- Apenas `ADMIN` acede a logs/auditoria.
+
+Commit final sugerido
+
+```powershell
+git add .
+git commit -m "MVP: Implementação SGSE (PARTE 1-8, UI/UX, testes e documentação)"
+```
+
+Problemas conhecidos / próximas melhorias
+- Melhorar validações e adicionar testes de integração para fluxos de pagamento.
+- UI/UX: tornar páginas mais ricas e responsivas (cards, imagens, galerias).
+- Adicionar fila para envios de e-mail e tarefas de longo tempo.
+
+Contacto
+- Projeto entregue como código no repositório local; contacte-me para ajustar fluxos, adicionar integração de pagamento real ou deploy.
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">

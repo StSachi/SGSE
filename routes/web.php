@@ -25,6 +25,13 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('admin')->name('admin.')->middleware(\App\Http\Middleware\RoleMiddleware::class . ':ADMIN')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
         Route::resource('settings', \App\Http\Controllers\Admin\SettingsController::class)->only(['index', 'edit', 'update']);
+        // Relatórios
+        Route::get('reports/reservas', [\App\Http\Controllers\Admin\ReportController::class, 'reservas'])->name('reports.reservas');
+        Route::get('reports/receitas', [\App\Http\Controllers\Admin\ReportController::class, 'receitas'])->name('reports.receitas');
+        Route::get('reports/ocupacao', [\App\Http\Controllers\Admin\ReportController::class, 'ocupacao'])->name('reports.ocupacao');
+
+        // Auditoria / Logs
+        Route::get('audits', [\App\Http\Controllers\Admin\AuditController::class, 'index'])->name('audits.index');
         // Rotas de auditoria e relatórios serão adicionadas na PARTE 8
     });
 

@@ -15,6 +15,19 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
+
+                    @auth
+                        @php $role = auth()->user()->role ?? null; @endphp
+                        @if($role === 'ADMIN')
+                            <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.*')">Admin</x-nav-link>
+                        @elseif($role === 'FUNCIONARIO')
+                            <x-nav-link :href="route('funcionario.dashboard')" :active="request()->routeIs('funcionario.*')">Funcionário</x-nav-link>
+                        @elseif($role === 'PROPRIETARIO')
+                            <x-nav-link :href="route('proprietario.dashboard')" :active="request()->routeIs('proprietario.*')">Proprietário</x-nav-link>
+                        @elseif($role === 'CLIENTE')
+                            <x-nav-link :href="route('cliente.dashboard')" :active="request()->routeIs('cliente.*')">Cliente</x-nav-link>
+                        @endif
+                    @endauth
                 </div>
             </div>
 

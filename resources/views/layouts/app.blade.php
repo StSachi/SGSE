@@ -27,6 +27,22 @@
                 </header>
             @endisset
 
+            <!-- Flash messages -->
+            <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+                @if(session('status'))
+                    <div class="mb-4 rounded p-3 bg-green-50 text-green-800">{{ session('status') }}</div>
+                @endif
+                @if($errors->any())
+                    <div class="mb-4 rounded p-3 bg-red-50 text-red-800">
+                        <ul class="list-disc list-inside">
+                            @foreach($errors->all() as $err)
+                                <li>{{ $err }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+            </div>
+
             <!-- Page Content -->
             <main>
                 {{ $slot }}
