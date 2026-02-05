@@ -8,7 +8,7 @@
         <input type="date" name="from" value="{{ $from }}" class="border p-2" />
         <input type="date" name="to" value="{{ $to }}" class="border p-2" />
         <button class="px-3 py-1 bg-blue-600 text-white">Filtrar</button>
-        <a href="?from={{ $from }}&to={{ $to }}&format=pdf" class="ml-2 text-sm text-gray-700">Download PDF</a>
+        <a href="?from={{ $from }}&to={{ $to }}&format=pdf" class="ml-2 text-sm text-gray-700">{{ __('Download PDF') }}</a>
     </form>
 
     @foreach($venues as $v)

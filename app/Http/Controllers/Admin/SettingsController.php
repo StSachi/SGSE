@@ -47,6 +47,6 @@ class SettingsController extends Controller
         // Auditoria: grava que o ADMIN alterou uma configuração
         $this->audit->log($request->user(), 'update', 'settings', $key, ['value' => $value], $request);
 
-        return redirect()->route('admin.settings.index')->with('status', 'Configuração atualizada');
+        return redirect()->route('admin.settings.index')->with('status', __('messages.settings_updated'));
     }
 }

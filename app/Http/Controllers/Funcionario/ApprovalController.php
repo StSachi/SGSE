@@ -38,7 +38,7 @@ class ApprovalController extends Controller
         // Auditoria
         $this->audit->log($request->user(), 'approve', 'owners', $owner->id, ['email' => $owner->user->email], $request);
 
-        return redirect()->back()->with('status', 'Proprietário aprovado.');
+        return redirect()->back()->with('status', __('messages.owner_approved'));
     }
 
     // Rejeitar proprietário
@@ -50,7 +50,7 @@ class ApprovalController extends Controller
 
         $this->audit->log($request->user(), 'reject', 'owners', $owner->id, ['email' => $owner->user->email, 'motivo' => $request->input('motivo')], $request);
 
-        return redirect()->back()->with('status', 'Proprietário rejeitado.');
+        return redirect()->back()->with('status', __('messages.owner_rejected'));
     }
 
     // Lista salões pendentes
@@ -69,7 +69,7 @@ class ApprovalController extends Controller
 
         $this->audit->log($request->user(), 'approve', 'venues', $venue->id, ['nome' => $venue->nome], $request);
 
-        return redirect()->back()->with('status', 'Salão aprovado.');
+        return redirect()->back()->with('status', __('messages.venue_approved'));
     }
 
     // Rejeitar salão
@@ -81,6 +81,6 @@ class ApprovalController extends Controller
 
         $this->audit->log($request->user(), 'reject', 'venues', $venue->id, ['nome' => $venue->nome, 'motivo' => $request->input('motivo')], $request);
 
-        return redirect()->back()->with('status', 'Salão rejeitado.');
+        return redirect()->back()->with('status', __('messages.venue_rejected'));
     }
 }

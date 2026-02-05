@@ -54,7 +54,7 @@ class VenueController extends Controller
             if ($existingCount + count($uploaded) > 5) {
                 // Remove venue criado para manter atomacidade simples e informar o erro
                 $venue->delete();
-                return back()->withErrors(['images' => 'Total de imagens excede o máximo de 5 por salão.'])->withInput();
+                return back()->withErrors(['images' => __('validation.custom.images.max')])->withInput();
             }
 
             $ordem = $existingCount + 1;
@@ -65,7 +65,7 @@ class VenueController extends Controller
             }
         }
 
-        return redirect()->route('proprietario.venues.index')->with('status', 'Salão criado e enviado para análise.');
+        return redirect()->route('proprietario.venues.index')->with('status', __('messages.venue_sent_for_review'));
     }
 
     public function show(Venue $venue)
@@ -89,7 +89,7 @@ class VenueController extends Controller
             $existingCount = $venue->images()->count();
             $uploaded = $request->file('images');
             if ($existingCount + count($uploaded) > 5) {
-                return back()->withErrors(['images' => 'Total de imagens excede o máximo de 5 por salão.'])->withInput();
+                return back()->withErrors(['images' => __('validation.custom.images.max')])->withInput();
             }
 
             $ordem = $existingCount + 1;
@@ -100,7 +100,7 @@ class VenueController extends Controller
             }
         }
 
-        return redirect()->route('proprietario.venues.index')->with('status', 'Salão actualizado.');
+        return redirect()->route('proprietario.venues.index')->with('status', __('messages.venue_updated'));
     }
 
     public function destroy(Venue $venue)
@@ -112,6 +112,6 @@ class VenueController extends Controller
 
         $venue->delete();
 
-        return redirect()->route('proprietario.venues.index')->with('status', 'Salão eliminado.');
+        return redirect()->route('proprietario.venues.index')->with('status', __('messages.venue_deleted'));
     }
 }

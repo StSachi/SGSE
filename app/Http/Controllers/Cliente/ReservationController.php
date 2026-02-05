@@ -36,7 +36,7 @@ class ReservationController extends Controller
         // Se já existe uma reserva CONFIRMADA ou PAGA para o mesmo salão e data,
         // não permitir nova reserva (data ocupada).
         if ($this->reservationService->hasConfirmedOrPaidReservation($venue->id, $request->input('data_evento'))) {
-            return back()->withErrors(['data_evento' => 'Data já ocupada por uma reserva confirmada/paga.']);
+            return back()->withErrors(['data_evento' => __('messages.date_conflict')]);
         }
 
         // Calcular valores padrão
@@ -57,6 +57,6 @@ class ReservationController extends Controller
         // Registar auditoria da criação da reserva
         $this->audit->log($user, 'create', 'reservations', $reservation->id, ['data_evento' => $reservation->data_evento, 'venue_id' => $venue->id], $request);
 
-        return redirect()->route('cliente.dashboard')->with('status', 'Reserva criada. PENDENTE_PAGAMENTO.');
+        return redirect()->route('cliente.dashboard')->with('status', __('messages.reservation_created_pending'));
     }
 }

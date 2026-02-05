@@ -63,12 +63,12 @@ class PaymentController extends Controller
 
         if ($tipo === 'SINAL') {
             if ($diasFaltam < $diasMin) {
-                return back()->withErrors(['tipo' => 'Pagamento por sinal não permitido tão perto da data do evento.']);
+                return back()->withErrors(['tipo' => __('messages.deposit_not_allowed')]);
             }
 
             // Verifica conflitos: não pode existir outra reserva CONFIRMADA/PAGA para mesma venue/data
             if ($this->reservationService->hasConfirmedOrPaidReservation($reservation->venue_id, $reservation->data_evento)) {
-                return back()->withErrors(['tipo' => 'Data já ocupada.']);
+                return back()->withErrors(['tipo' => __('messages.date_taken')]);
             }
 
             $payment = $this->paymentService->registerPayment($reservation, 'SINAL', $valor, $request->input('metodo') ?? 'simulado', $request->input('referencia'));
@@ -81,7 +81,7 @@ class PaymentController extends Controller
 
             $this->audit->log($request->user(), 'create', 'payments', $payment->id, ['tipo'=>'SINAL','valor'=>$valor,'reservation_id'=>$reservation->id], $request);
 
-            return redirect()->route('cliente.dashboard')->with('status', 'Sinal registado. Reserva confirmada.');
+            return redirect()->route('cliente.dashboard')->with('status', __('messages.deposit_registered'));
         }
 
         if ($tipo === 'TOTAL') {
@@ -94,9 +94,9 @@ class PaymentController extends Controller
 
             $this->audit->log($request->user(), 'create', 'payments', $payment->id, ['tipo'=>'TOTAL','valor'=>$valor,'reservation_id'=>$reservation->id], $request);
 
-            return redirect()->route('cliente.dashboard')->with('status', 'Pagamento total registado.');
+            return redirect()->route('cliente.dashboard')->with('status', __('messages.payment_registered'));
         }
 
-        return back()->withErrors(['tipo' => 'Tipo de pagamento inválido.']);
+        return back()->withErrors(['tipo' => __('messages.invalid_payment_type')]);
     }
 }
