@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\OwnerRequestController;
 use App\Http\Controllers\SolicitacaoOwnerController;
+use App\Http\Controllers\PublicFileController;
 
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PublicVenueController;
@@ -25,6 +26,10 @@ use App\Http\Controllers\Cliente\DashboardController as ClienteDashboardControll
 use App\Http\Controllers\Cliente\VenueSearchController;
 use App\Http\Controllers\Cliente\ReservationController;
 use App\Http\Controllers\Cliente\PaymentController;
+
+Route::get('/f/{path}', [PublicFileController::class, 'show'])
+    ->where('path', '.*')
+    ->name('files.show');
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
