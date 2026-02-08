@@ -14,7 +14,10 @@
             <x-card>
                 <div class="h-40 bg-gray-100 rounded overflow-hidden mb-3">
                     @if($venue->images->first())
-                        <img src="{{ asset('storage/' . $venue->images->first()->path) }}" class="w-full h-full object-cover" />
+                        <img
+                            src="{{ route('files.show', ['path' => $venue->images->first()->path]) }}"
+                            class="w-full h-full object-cover"
+                        />
                     @else
                         <div class="w-full h-full flex items-center justify-center text-gray-400">Sem imagem</div>
                     @endif
