@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Owner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class SolicitacaoOwnerController extends Controller
@@ -39,43 +40,39 @@ class SolicitacaoOwnerController extends Controller
         }
 
         if (User::where('email', $solicitacao->email)->exists()) {
-            return back()->with('error', 'Já existe um utilizador com este email. Use o login ou recupere a senha.');
+            return back()->with('error', 'Já existe um utilizador com este email.');
         }
 
-        $senhaGerada = Str::random(10);
+        $senha = Str::random(10);
 
-        DB::transaction(function () use ($solicitacao, $senhaGerada) {
+        DB::transaction(function () use ($solicitacao, $senha) {
+
             $user = User::create([
                 'name'     => $solicitacao->nome,
                 'email'    => $solicitacao->email,
                 'papel'    => User::ROLE_PROPRIETARIO,
                 'ativo'    => true,
-                'password' => $senhaGerada,
+                'password' => Hash::make($senha),
             ]);
 
-            Owner::updateOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'telefone' => $solicitacao->telefone,
-                    'nif'      => $solicitacao->nif,
-                    'estado'   => 'APROVADO',
-                ]
-            );
+            Owner::create([
+                'user_id'  => $user->id,
+                'telefone' => $solicitacao->telefone,
+                'nif'      => $solicitacao->nif,
+                'estado'   => 'APROVADO',
+            ]);
 
             $solicitacao->update([
-                'estado'          => SolicitacaoOwner::APROVADA,
-                'revisado_por'    => auth()->id(),
-                'revisado_em'     => now(),
-                'motivo_rejeicao' => null,
+                'estado'       => SolicitacaoOwner::APROVADA,
+                'revisado_por' => auth()->id(),
+                'revisado_em'  => now(),
             ]);
         });
 
-        return back()
-            ->with('success', 'Solicitação aprovada. Conta do proprietário criada.')
-            ->with('credenciais_owner', [
-                'email' => $solicitacao->email,
-                'senha' => $senhaGerada,
-            ]);
+        return back()->with('credenciais_owner', [
+            'email' => $solicitacao->email,
+            'senha' => $senha,
+        ]);
     }
 
     public function rejeitar(Request $request, SolicitacaoOwner $solicitacao)
@@ -86,7 +83,7 @@ class SolicitacaoOwnerController extends Controller
             return back()->with('error', 'Esta solicitação já foi processada.');
         }
 
-        $data = $request->validate([
+        $request->validate([
             'motivo_rejeicao' => ['required', 'string', 'max:1000'],
         ]);
 
@@ -94,10 +91,19 @@ class SolicitacaoOwnerController extends Controller
             'estado'          => SolicitacaoOwner::REJEITADA,
             'revisado_por'    => auth()->id(),
             'revisado_em'     => now(),
-            'motivo_rejeicao' => $data['motivo_rejeicao'],
+            'motivo_rejeicao' => $request->motivo_rejeicao,
         ]);
 
         return back()->with('success', 'Solicitação rejeitada.');
+    }
+
+    public function destroy(SolicitacaoOwner $solicitacao)
+    {
+        $this->authorizeRoles(['FUNCIONARIO']);
+
+        $solicitacao->delete();
+
+        return back()->with('success', 'Solicitação eliminada.');
     }
 
     private function authorizeRoles(array $roles): void
