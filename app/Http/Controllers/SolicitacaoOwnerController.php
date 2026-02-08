@@ -19,7 +19,14 @@ class SolicitacaoOwnerController extends Controller
         $this->authorizeRoles(['FUNCIONARIO']);
 
         $solicitacoes = SolicitacaoOwner::query()
-            ->orderByRaw("FIELD(estado,'PENDENTE','REJEITADA','APROVADA')")
+            ->orderByRaw("
+                CASE estado
+                    WHEN 'PENDENTE'  THEN 1
+                    WHEN 'REJEITADA' THEN 2
+                    WHEN 'APROVADA'  THEN 3
+                    ELSE 99
+                END
+            ")
             ->orderByDesc('created_at')
             ->paginate(15);
 
@@ -76,3 +83,10 @@ class SolicitacaoOwnerController extends Controller
      * Autorização simples por papel
      */
     private function authorizeRoles(array $roles): void
+    {
+        $user  = auth()->user();
+        $papel = $user->papel ?? $user->role ?? null;
+
+        abort_unless(in_array($papel, $roles, true), 403);
+    }
+}
