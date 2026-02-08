@@ -1,38 +1,57 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="csrf-token" content="{{ csrf_token() }}">
+<!doctype html>
+<html lang="pt">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@yield('title', 'SGSE')</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body class="bg-slate-50 text-slate-900">
+<header class="sticky top-0 z-40 border-b bg-white/80 backdrop-blur">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+        <a href="{{ route('home') }}" class="font-semibold tracking-tight">
+            SGSE <span class="text-slate-500 font-normal">— Gestão & Marcação de Eventos</span>
+        </a>
 
-        <title>{{ config('app.name', 'SGFS') }}</title>
+        <nav class="flex items-center gap-2">
+            @auth
+                <a href="{{ route('dashboard') }}"
+                   class="inline-flex items-center justify-center rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 transition">
+                    Abrir Dashboard
+                </a>
+            @else
+                <a href="{{ route('login') }}"
+                   class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-100 transition">
+                    Entrar
+                </a>
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+                @if (Route::has('register'))
+                    <a href="{{ route('register') }}"
+                       class="inline-flex items-center justify-center rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 transition">
+                        Criar conta
+                    </a>
+                @endif
+            @endauth
+        </nav>
+    </div>
+</header>
 
-        <!-- Scripts -->
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    </head>
+<main>
+    @yield('content')
+</main>
 
-    <body class="font-sans text-gray-900 antialiased">
-        <div class="min-h-screen flex flex-col justify-center items-center px-4 py-10 bg-gray-100">
-            <a href="{{ route('dashboard') }}"
-               class="inline-flex items-center gap-3 focus:outline-none focus:ring-2 focus:ring-slate-400 rounded-full"
-               aria-label="{{ config('app.name', 'SGFS') }}">
-                <x-application-logo />
-                <span class="sr-only">{{ config('app.name', 'SGFS') }}</span>
-            </a>
-
-            <div class="w-full max-w-md mt-6 bg-white shadow-md overflow-hidden rounded-xl">
-                <div class="px-6 py-5">
-                    {{ $slot }}
-                </div>
-            </div>
-
-            <div class="mt-6 text-xs text-gray-500">
-                © {{ date('Y') }} {{ config('app.name', 'SGFS') }}
-            </div>
+<footer class="border-t bg-white mt-16">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 text-sm text-slate-500 flex flex-col sm:flex-row gap-2 justify-between">
+        <div>© {{ date('Y') }} SGSE</div>
+        <div class="flex gap-3">
+            <a class="hover:text-slate-700" href="{{ route('home') }}">Home</a>
+            @auth
+                <a class="hover:text-slate-700" href="{{ route('dashboard') }}">Dashboard</a>
+            @else
+                <a class="hover:text-slate-700" href="{{ route('login') }}">Login</a>
+            @endauth
         </div>
-    </body>
+    </div>
+</footer>
+</body>
 </html>

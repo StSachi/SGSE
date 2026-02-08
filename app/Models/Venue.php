@@ -2,20 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/**
- * Model Venue (Salão)
- *
- * ERS / Regras:
- * - Um salão pertence a um Proprietário (Owner).
- * - Apenas salões com estado APROVADO são visíveis para clientes.
- * - Workflow de aprovação: PENDENTE → APROVADO / REJEITADO.
- * - Preço base é o valor de referência para cálculo da reserva.
- */
 class Venue extends Model
 {
     use HasFactory;
@@ -25,14 +17,12 @@ class Venue extends Model
     public const ESTADO_APROVADO  = 'APROVADO';
     public const ESTADO_REJEITADO = 'REJEITADO';
 
-    /**
-     * Atributos permitidos para mass assignment
-     */
     protected $fillable = [
         'owner_id',
         'nome',
         'descricao',
         'provincia',
+        'cidade',
         'municipio',
         'endereco',
         'capacidade',
@@ -41,40 +31,46 @@ class Venue extends Model
         'estado',
     ];
 
-    /**
-     * Casts para integridade de dados
-     */
     protected $casts = [
-        'owner_id'   => 'integer',
-        'capacidade'=> 'integer',
-        'preco_base'=> 'decimal:2',
+        'capacidade' => 'integer',
+        'preco_base' => 'decimal:2',
     ];
 
-    /**
-     * Valor por defeito (ERS)
-     */
     protected $attributes = [
         'estado' => self::ESTADO_PENDENTE,
+        'preco_base' => 0.00,
     ];
 
     // ---------------- Relações ----------------
 
     public function owner(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Owner::class);
+        return $this->belongsTo(Owner::class, 'owner_id');
     }
 
     public function images(): HasMany
     {
-        return $this->hasMany(\App\Models\VenueImage::class)->orderBy('ordem');
+        return $this->hasMany(VenueImage::class)->orderBy('ordem');
     }
 
     public function reservations(): HasMany
     {
-        return $this->hasMany(\App\Models\Reservation::class);
+        return $this->hasMany(Reservation::class, 'venue_id');
     }
 
-    // ---------------- Helpers de estado (ERS) ----------------
+    public function events(): HasMany
+    {
+        return $this->hasMany(Event::class, 'venue_id');
+    }
+
+    // ---------------- Scopes ----------------
+
+    public function scopeAprovados(Builder $query): Builder
+    {
+        return $query->where('estado', self::ESTADO_APROVADO);
+    }
+
+    // ---------------- Helpers ----------------
 
     public function isPendente(): bool
     {
@@ -89,5 +85,10 @@ class Venue extends Model
     public function isRejeitado(): bool
     {
         return $this->estado === self::ESTADO_REJEITADO;
+    }
+
+    public function getPrecoBaseFormatadoAttribute(): string
+    {
+        return number_format((float) $this->preco_base, 2, ',', '.') . ' Kz';
     }
 }

@@ -1,34 +1,87 @@
 <?php
 
+use Illuminate\Support\Facades\Route;
+
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\OwnerRequestController;
-use Illuminate\Support\Facades\Route;
+
+// ✅ NOVOS (HOME + PÁGINAS PÚBLICAS)
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\PublicVenueController;
+
+// =========================
+// ADMIN
+// =========================
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\AuditController;
+use App\Http\Controllers\Admin\FuncionarioController;
+
+// =========================
+// FUNCIONÁRIO
+// =========================
+use App\Http\Controllers\Funcionario\DashboardController as FuncionarioDashboardController;
+use App\Http\Controllers\Funcionario\ApprovalController;
+
+// =========================
+// PROPRIETÁRIO
+// =========================
+use App\Http\Controllers\Proprietario\DashboardController as ProprietarioDashboardController;
+use App\Http\Controllers\Proprietario\VenueController as ProprietarioVenueController;
+
+// =========================
+// CLIENTE
+// =========================
+use App\Http\Controllers\Cliente\DashboardController as ClienteDashboardController;
+use App\Http\Controllers\Cliente\VenueSearchController;
+use App\Http\Controllers\Cliente\ReservationController;
+use App\Http\Controllers\Cliente\PaymentController;
 
 /*
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
+| Rotas web do SGSE (sessões/cookies). Autenticação vem do Breeze (auth.php).
+|--------------------------------------------------------------------------
 */
 
-Route::get('/', function () {
-    return redirect()->route('dashboard');
-});
+/**
+ * ✅ HOME PÚBLICA (com pesquisa/ disponibilidade / próximos eventos)
+ */
+Route::get('/', [HomeController::class, 'index'])->name('home');
 
 /**
- * Dashboard "central"
- * Redireciona para o dashboard conforme o papel do utilizador.
- * NOTA: o nome da rota (admin.dashboard) NÃO tem relação com o nome da view.
+ * ✅ Rotas PÚBLICAS (visitante)
+ * - ver detalhe de um venue
+ */
+Route::get('/venues/{venue}', [PublicVenueController::class, 'show'])->name('public.venues.show');
+
+/**
+ * ✅ PÚBLICO: Solicitar cadastro de PROPRIETÁRIO desde o início
+ * (sem login)
+ */
+Route::get('/owner/request', [OwnerRequestController::class, 'create'])
+    ->name('owner.request');
+
+Route::post('/owner/request', [OwnerRequestController::class, 'store'])
+    ->name('owner.request.store');
+
+// página de confirmação (cria o método sent() no controller)
+Route::get('/owner/request/sent', [OwnerRequestController::class, 'sent'])
+    ->name('owner.request.sent');
+
+/**
+ * Dashboard central:
+ * Decide qual dashboard mostrar conforme o papel do utilizador.
  */
 Route::get('/dashboard', function () {
     $user = auth()->user();
 
-    // Se por algum motivo não houver user (não deveria, por causa do middleware),
-    // manda para login.
     if (! $user) {
         return redirect()->route('login');
     }
 
-    // Usa o campo "papel" (ADMIN, FUNCIONARIO, PROPRIETARIO, CLIENTE...)
     $papel = $user->papel ?? null;
 
     $route = match ($papel) {
@@ -40,134 +93,120 @@ Route::get('/dashboard', function () {
     };
 
     return redirect()->route($route);
-})->middleware(['auth'])->name('dashboard');
+})->middleware('auth')->name('dashboard');
 
+/*
+|--------------------------------------------------------------------------
+| Rotas autenticadas
+|--------------------------------------------------------------------------
+*/
 Route::middleware('auth')->group(function () {
+
+    // Perfil (Breeze)
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
 
-/**
- * Grupos de rotas por perfil (RBAC)
- */
-Route::middleware(['auth'])->group(function () {
-
-    // =========================
-    // ADMIN
-    // =========================
+    // ADMIN (RBAC)
     Route::prefix('admin')
         ->name('admin.')
         ->middleware(\App\Http\Middleware\RoleMiddleware::class . ':ADMIN')
         ->group(function () {
 
-            // GET /admin  -> route name: admin.dashboard
-            Route::get('/', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])
+            Route::get('/', [AdminDashboardController::class, 'index'])
                 ->name('dashboard');
 
-            Route::resource('settings', \App\Http\Controllers\Admin\SettingsController::class)
+            Route::resource('settings', SettingsController::class)
                 ->only(['index', 'edit', 'update']);
 
-            // Relatórios
-            Route::get('reports/reservas', [\App\Http\Controllers\Admin\ReportController::class, 'reservas'])
+            Route::get('reports/reservas', [ReportController::class, 'reservas'])
                 ->name('reports.reservas');
 
-            Route::get('reports/receitas', [\App\Http\Controllers\Admin\ReportController::class, 'receitas'])
+            Route::get('reports/receitas', [ReportController::class, 'receitas'])
                 ->name('reports.receitas');
 
-            Route::get('reports/ocupacao', [\App\Http\Controllers\Admin\ReportController::class, 'ocupacao'])
+            Route::get('reports/ocupacao', [ReportController::class, 'ocupacao'])
                 ->name('reports.ocupacao');
 
-            // Auditoria / Logs
-            Route::get('audits', [\App\Http\Controllers\Admin\AuditController::class, 'index'])
+            Route::get('audits', [AuditController::class, 'index'])
                 ->name('audits.index');
+
+            Route::patch('funcionarios/{funcionario}/toggle', [FuncionarioController::class, 'toggleAtivo'])
+                ->name('funcionarios.toggle');
+
+            Route::resource('funcionarios', FuncionarioController::class);
         });
 
-    // =========================
-    // FUNCIONARIO
-    // =========================
+    // FUNCIONÁRIO (RBAC)
     Route::prefix('funcionario')
         ->name('funcionario.')
         ->middleware(\App\Http\Middleware\RoleMiddleware::class . ':FUNCIONARIO')
         ->group(function () {
 
-            // GET /funcionario -> route name: funcionario.dashboard
-            Route::get('/', [\App\Http\Controllers\Funcionario\DashboardController::class, 'index'])
+            Route::get('/', [FuncionarioDashboardController::class, 'index'])
                 ->name('dashboard');
 
-            Route::get('approvals/owners', [\App\Http\Controllers\Funcionario\ApprovalController::class, 'owners'])
+            Route::get('approvals/owners', [ApprovalController::class, 'owners'])
                 ->name('approvals.owners');
 
-            Route::post('approvals/owners/{id}/approve', [\App\Http\Controllers\Funcionario\ApprovalController::class, 'approveOwner'])
+            Route::post('approvals/owners/{id}/approve', [ApprovalController::class, 'approveOwner'])
                 ->name('approvals.approveOwner');
 
-            Route::post('approvals/owners/{id}/reject', [\App\Http\Controllers\Funcionario\ApprovalController::class, 'rejectOwner'])
+            Route::post('approvals/owners/{id}/reject', [ApprovalController::class, 'rejectOwner'])
                 ->name('approvals.rejectOwner');
 
-            Route::get('approvals/venues', [\App\Http\Controllers\Funcionario\ApprovalController::class, 'venues'])
+            Route::get('approvals/venues', [ApprovalController::class, 'venues'])
                 ->name('approvals.venues');
 
-            Route::post('approvals/venues/{id}/approve', [\App\Http\Controllers\Funcionario\ApprovalController::class, 'approveVenue'])
+            Route::post('approvals/venues/{id}/approve', [ApprovalController::class, 'approveVenue'])
                 ->name('approvals.approveVenue');
 
-            Route::post('approvals/venues/{id}/reject', [\App\Http\Controllers\Funcionario\ApprovalController::class, 'rejectVenue'])
+            Route::post('approvals/venues/{id}/reject', [ApprovalController::class, 'rejectVenue'])
                 ->name('approvals.rejectVenue');
         });
 
-    // =========================
-    // CLIENTE (solicitação para virar PROPRIETARIO)
-    // =========================
-    Route::middleware([\App\Http\Middleware\RoleMiddleware::class . ':CLIENTE'])->group(function () {
-        Route::get('/owner/request', [OwnerRequestController::class, 'create'])
-            ->name('owner.request');
 
-        Route::post('/owner/request', [OwnerRequestController::class, 'store'])
-            ->name('owner.request.store');
-    });
-
-    // =========================
-    // PROPRIETARIO
-    // =========================
+    // PROPRIETÁRIO (RBAC)
     Route::prefix('proprietario')
         ->name('proprietario.')
         ->middleware(\App\Http\Middleware\RoleMiddleware::class . ':PROPRIETARIO')
         ->group(function () {
 
-            // GET /proprietario -> route name: proprietario.dashboard
-            Route::get('/', [\App\Http\Controllers\Proprietario\DashboardController::class, 'index'])
+            Route::get('/', [ProprietarioDashboardController::class, 'index'])
                 ->name('dashboard');
 
-            Route::resource('venues', \App\Http\Controllers\Proprietario\VenueController::class);
+            Route::resource('venues', ProprietarioVenueController::class);
         });
 
-    // =========================
-    // CLIENTE
-    // =========================
+    // CLIENTE (RBAC)
     Route::prefix('cliente')
         ->name('cliente.')
         ->middleware(\App\Http\Middleware\RoleMiddleware::class . ':CLIENTE')
         ->group(function () {
 
-            // GET /cliente -> route name: cliente.dashboard
-            Route::get('/', [\App\Http\Controllers\Cliente\DashboardController::class, 'index'])
+            Route::get('/', [ClienteDashboardController::class, 'index'])
                 ->name('dashboard');
 
-            Route::get('venues', [\App\Http\Controllers\Cliente\VenueSearchController::class, 'index'])
+            Route::get('venues', [VenueSearchController::class, 'index'])
                 ->name('venues.index');
 
-            Route::get('venues/{venue}', [\App\Http\Controllers\Cliente\VenueSearchController::class, 'show'])
+            Route::get('venues/{venue}', [VenueSearchController::class, 'show'])
                 ->name('venues.show');
 
-            Route::post('reservations', [\App\Http\Controllers\Cliente\ReservationController::class, 'store'])
+            Route::post('reservations', [ReservationController::class, 'store'])
                 ->name('reservations.store');
 
-            Route::get('payments/{reservation}/create', [\App\Http\Controllers\Cliente\PaymentController::class, 'create'])
+            Route::get('payments/{reservation}/create', [PaymentController::class, 'create'])
                 ->name('payments.create');
 
-            Route::post('payments/{reservation}', [\App\Http\Controllers\Cliente\PaymentController::class, 'store'])
+            Route::post('payments/{reservation}', [PaymentController::class, 'store'])
                 ->name('payments.store');
         });
 });
 
-// Auth routes (Breeze)
+Route::get('/logout', function () {
+    return redirect()->route('home')
+        ->with('error', 'Ação inválida. Para terminar a sessão, use o botão "Sair".');
+});
+
 require __DIR__ . '/auth.php';
