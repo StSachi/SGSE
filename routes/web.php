@@ -4,8 +4,9 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\OwnerRequestController;
+use App\Http\Controllers\SolicitacaoOwnerController;
 
-// ✅ NOVOS (HOME + PÁGINAS PÚBLICAS)
+// ✅ HOME + PÁGINAS PÚBLICAS
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PublicVenueController;
 
@@ -42,24 +43,15 @@ use App\Http\Controllers\Cliente\PaymentController;
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-| Rotas web do SGSE (sessões/cookies). Autenticação vem do Breeze (auth.php).
-|--------------------------------------------------------------------------
 */
 
-/**
- * ✅ HOME PÚBLICA (com pesquisa/ disponibilidade / próximos eventos)
- */
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
-/**
- * ✅ Rotas PÚBLICAS (visitante)
- * - ver detalhe de um venue
- */
-Route::get('/venues/{venue}', [PublicVenueController::class, 'show'])->name('public.venues.show');
+Route::get('/venues/{venue}', [PublicVenueController::class, 'show'])
+    ->name('public.venues.show');
 
 /**
- * ✅ PÚBLICO: Solicitar cadastro de PROPRIETÁRIO desde o início
- * (sem login)
+ * PÚBLICO – Solicitação de Owner
  */
 Route::get('/owner/request', [OwnerRequestController::class, 'create'])
     ->name('owner.request');
@@ -67,13 +59,11 @@ Route::get('/owner/request', [OwnerRequestController::class, 'create'])
 Route::post('/owner/request', [OwnerRequestController::class, 'store'])
     ->name('owner.request.store');
 
-// página de confirmação (cria o método sent() no controller)
 Route::get('/owner/request/sent', [OwnerRequestController::class, 'sent'])
     ->name('owner.request.sent');
 
 /**
- * Dashboard central:
- * Decide qual dashboard mostrar conforme o papel do utilizador.
+ * Dashboard central
  */
 Route::get('/dashboard', function () {
     $user = auth()->user();
@@ -84,15 +74,13 @@ Route::get('/dashboard', function () {
 
     $papel = $user->papel ?? null;
 
-    $route = match ($papel) {
+    return redirect()->route(match ($papel) {
         'ADMIN'        => 'admin.dashboard',
         'FUNCIONARIO'  => 'funcionario.dashboard',
         'PROPRIETARIO' => 'proprietario.dashboard',
         'CLIENTE'      => 'cliente.dashboard',
         default        => 'cliente.dashboard',
-    };
-
-    return redirect()->route($route);
+    });
 })->middleware('auth')->name('dashboard');
 
 /*
@@ -102,34 +90,29 @@ Route::get('/dashboard', function () {
 */
 Route::middleware('auth')->group(function () {
 
-    // Perfil (Breeze)
+    // Perfil
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // ADMIN (RBAC)
+    /**
+     * ADMIN
+     */
     Route::prefix('admin')
         ->name('admin.')
         ->middleware(\App\Http\Middleware\RoleMiddleware::class . ':ADMIN')
         ->group(function () {
 
-            Route::get('/', [AdminDashboardController::class, 'index'])
-                ->name('dashboard');
+            Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
 
             Route::resource('settings', SettingsController::class)
                 ->only(['index', 'edit', 'update']);
 
-            Route::get('reports/reservas', [ReportController::class, 'reservas'])
-                ->name('reports.reservas');
+            Route::get('reports/reservas', [ReportController::class, 'reservas'])->name('reports.reservas');
+            Route::get('reports/receitas', [ReportController::class, 'receitas'])->name('reports.receitas');
+            Route::get('reports/ocupacao', [ReportController::class, 'ocupacao'])->name('reports.ocupacao');
 
-            Route::get('reports/receitas', [ReportController::class, 'receitas'])
-                ->name('reports.receitas');
-
-            Route::get('reports/ocupacao', [ReportController::class, 'ocupacao'])
-                ->name('reports.ocupacao');
-
-            Route::get('audits', [AuditController::class, 'index'])
-                ->name('audits.index');
+            Route::get('audits', [AuditController::class, 'index'])->name('audits.index');
 
             Route::patch('funcionarios/{funcionario}/toggle', [FuncionarioController::class, 'toggleAtivo'])
                 ->name('funcionarios.toggle');
@@ -137,7 +120,9 @@ Route::middleware('auth')->group(function () {
             Route::resource('funcionarios', FuncionarioController::class);
         });
 
-    // FUNCIONÁRIO (RBAC)
+    /**
+     * FUNCIONÁRIO
+     */
     Route::prefix('funcionario')
         ->name('funcionario.')
         ->middleware(\App\Http\Middleware\RoleMiddleware::class . ':FUNCIONARIO')
@@ -146,6 +131,22 @@ Route::middleware('auth')->group(function () {
             Route::get('/', [FuncionarioDashboardController::class, 'index'])
                 ->name('dashboard');
 
+            /**
+             * ✅ SOLICITAÇÕES DE OWNERS (CORRETO)
+             */
+            Route::get('solicitacoes-owners', [SolicitacaoOwnerController::class, 'index'])
+                ->name('solicitacoes_owners.index');
+
+            Route::post('solicitacoes-owners/{solicitacao}/aprovar', [SolicitacaoOwnerController::class, 'aprovar'])
+                ->name('solicitacoes_owners.aprovar');
+
+            Route::post('solicitacoes-owners/{solicitacao}/rejeitar', [SolicitacaoOwnerController::class, 'rejeitar'])
+                ->name('solicitacoes_owners.rejeitar');
+
+            /**
+             * APPROVALS ANTIGOS (Owner/Venue diretos)
+             * (podes remover owners daqui depois)
+             */
             Route::get('approvals/owners', [ApprovalController::class, 'owners'])
                 ->name('approvals.owners');
 
@@ -165,8 +166,9 @@ Route::middleware('auth')->group(function () {
                 ->name('approvals.rejectVenue');
         });
 
-
-    // PROPRIETÁRIO (RBAC)
+    /**
+     * PROPRIETÁRIO
+     */
     Route::prefix('proprietario')
         ->name('proprietario.')
         ->middleware(\App\Http\Middleware\RoleMiddleware::class . ':PROPRIETARIO')
@@ -178,7 +180,9 @@ Route::middleware('auth')->group(function () {
             Route::resource('venues', ProprietarioVenueController::class);
         });
 
-    // CLIENTE (RBAC)
+    /**
+     * CLIENTE
+     */
     Route::prefix('cliente')
         ->name('cliente.')
         ->middleware(\App\Http\Middleware\RoleMiddleware::class . ':CLIENTE')
