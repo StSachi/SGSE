@@ -103,6 +103,9 @@ Route::middleware('auth')->group(function () {
             Route::post('solicitacoes-owners/{solicitacao}/rejeitar', [SolicitacaoOwnerController::class, 'rejeitar'])
                 ->name('solicitacoes_owners.rejeitar');
 
+            Route::post('solicitacoes-owners/{solicitacao}/eliminar', [SolicitacaoOwnerController::class, 'destroy'])
+                ->name('solicitacoes_owners.destroy');
+
             Route::get('approvals/owners', [ApprovalController::class, 'owners'])
                 ->name('approvals.owners');
 
