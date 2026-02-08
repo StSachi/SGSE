@@ -21,13 +21,15 @@
                     </div>
 
                     <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                        {{-- SOLICITAÇÕES DE PROPRIETÁRIOS (NOVO FLUXO CORRETO) --}}
                         <li>
-                            <a href="{{ route('funcionario.approvals.owners') }}"
+                            <a href="{{ route('funcionario.solicitacoes_owners.index') }}"
                                class="text-blue-600 hover:underline">
-                                {{ __('Aprovar Proprietários') }}
+                                {{ __('Solicitações de Proprietários') }}
                             </a>
                         </li>
 
+                        {{-- APROVAÇÃO DE SALÕES (FLUXO EXISTENTE) --}}
                         <li>
                             <a href="{{ route('funcionario.approvals.venues') }}"
                                class="text-blue-600 hover:underline">
