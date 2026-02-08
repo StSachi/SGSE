@@ -40,9 +40,10 @@ class SolicitacaoOwnerController extends Controller
 
     /**
      * Aprovar solicitação
-     * - Cria User (PROPRIETARIO) + Owner
+     * - Cria User (PROPRIETARIO)
+     * - Cria ou atualiza Owner (APROVADO)
      * - Marca a solicitação como APROVADA
-     * - Devolve credenciais (senha) via session para o funcionário copiar/enviar
+     * - Devolve credenciais (senha) para o funcionário copiar/enviar
      */
     public function aprovar(SolicitacaoOwner $solicitacao)
     {
@@ -52,54 +53,43 @@ class SolicitacaoOwnerController extends Controller
             return back()->with('error', 'Esta solicitação já foi processada.');
         }
 
-        // Se já existir user com este email, não cria outra conta
+        // Evitar duplicar utilizador
         if (User::where('email', $solicitacao->email)->exists()) {
             return back()->with('error', 'Já existe um utilizador com este email. Use o login ou recupere a senha.');
         }
 
-        // Gera senha inicial
         $senhaGerada = Str::random(10);
 
         DB::transaction(function () use ($solicitacao, $senhaGerada) {
 
-            // 1) cria o utilizador PROPRIETARIO
+            // 1) Criar USER (PROPRIETARIO)
             $user = User::create([
                 'name'     => $solicitacao->nome,
                 'email'    => $solicitacao->email,
-                'papel'    => User::ROLE_PROPRIETARIO, // usa o campo oficial
+                'papel'    => User::ROLE_PROPRIETARIO,
                 'ativo'    => true,
                 'password' => Hash::make($senhaGerada),
             ]);
 
-            // 2) cria o Owner ligado ao user
-            // Ajusta os campos conforme o teu model/migration de Owner
-            Owner::create([
-                'user_id'  => $user->id,
-                'telefone' => $solicitacao->telefone,
-                'nif'      => $solicitacao->nif,
-                // se tiveres campos de estado/ativo no Owner, podes adicionar aqui
-                // 'estado' => Owner::ESTADO_APROVADO,
-                // 'ativo'  => true,
+            // 2) Criar ou atualizar OWNER e marcar como APROVADO
+            Owner::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'telefone' => $solicitacao->telefone,
+                    'nif'      => $solicitacao->nif,
+                    'estado'   => 'APROVADO', // 🔥 ESSENCIAL
+                ]
+            );
+
+            // 3) Atualizar SOLICITAÇÃO
+            $solicitacao->update([
+                'estado'           => SolicitacaoOwner::APROVADA,
+                'revisado_por'     => auth()->id(),
+                'revisado_em'      => now(),
+                'motivo_rejeicao'  => null,
             ]);
-
-            // 3) marca solicitação como aprovada e liga ao user (se existir coluna user_id)
-            $update = [
-                'estado'       => SolicitacaoOwner::APROVADA,
-                'revisado_por' => auth()->id(),
-                'revisado_em'  => now(),
-                'motivo_rejeicao' => null,
-            ];
-
-            // só seta user_id se a coluna existir na tabela (evita crash)
-            if (array_key_exists('user_id', $solicitacao->getAttributes()) || $solicitacao->getConnection()
-                ->getSchemaBuilder()->hasColumn($solicitacao->getTable(), 'user_id')) {
-                $update['user_id'] = $user->id;
-            }
-
-            $solicitacao->update($update);
         });
 
-        // mostrar credenciais uma vez para o funcionário copiar/enviar
         return back()
             ->with('success', 'Solicitação aprovada. Conta do proprietário criada.')
             ->with('credenciais_owner', [
