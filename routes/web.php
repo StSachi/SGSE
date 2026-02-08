@@ -6,53 +6,31 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\OwnerRequestController;
 use App\Http\Controllers\SolicitacaoOwnerController;
 
-// ✅ HOME + PÁGINAS PÚBLICAS
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PublicVenueController;
 
-// =========================
-// ADMIN
-// =========================
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\FuncionarioController;
 
-// =========================
-// FUNCIONÁRIO
-// =========================
 use App\Http\Controllers\Funcionario\DashboardController as FuncionarioDashboardController;
 use App\Http\Controllers\Funcionario\ApprovalController;
 
-// =========================
-// PROPRIETÁRIO
-// =========================
 use App\Http\Controllers\Proprietario\DashboardController as ProprietarioDashboardController;
 use App\Http\Controllers\Proprietario\VenueController as ProprietarioVenueController;
 
-// =========================
-// CLIENTE
-// =========================
 use App\Http\Controllers\Cliente\DashboardController as ClienteDashboardController;
 use App\Http\Controllers\Cliente\VenueSearchController;
 use App\Http\Controllers\Cliente\ReservationController;
 use App\Http\Controllers\Cliente\PaymentController;
-
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-*/
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
 Route::get('/venues/{venue}', [PublicVenueController::class, 'show'])
     ->name('public.venues.show');
 
-/**
- * PÚBLICO – Solicitação de Owner
- */
 Route::get('/owner/request', [OwnerRequestController::class, 'create'])
     ->name('owner.request');
 
@@ -62,9 +40,6 @@ Route::post('/owner/request', [OwnerRequestController::class, 'store'])
 Route::get('/owner/request/sent', [OwnerRequestController::class, 'sent'])
     ->name('owner.request.sent');
 
-/**
- * Dashboard central
- */
 Route::get('/dashboard', function () {
     $user = auth()->user();
 
@@ -83,21 +58,12 @@ Route::get('/dashboard', function () {
     });
 })->middleware('auth')->name('dashboard');
 
-/*
-|--------------------------------------------------------------------------
-| Rotas autenticadas
-|--------------------------------------------------------------------------
-*/
 Route::middleware('auth')->group(function () {
 
-    // Perfil
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    /**
-     * ADMIN
-     */
     Route::prefix('admin')
         ->name('admin.')
         ->middleware(\App\Http\Middleware\RoleMiddleware::class . ':ADMIN')
@@ -120,9 +86,6 @@ Route::middleware('auth')->group(function () {
             Route::resource('funcionarios', FuncionarioController::class);
         });
 
-    /**
-     * FUNCIONÁRIO
-     */
     Route::prefix('funcionario')
         ->name('funcionario.')
         ->middleware(\App\Http\Middleware\RoleMiddleware::class . ':FUNCIONARIO')
@@ -131,9 +94,6 @@ Route::middleware('auth')->group(function () {
             Route::get('/', [FuncionarioDashboardController::class, 'index'])
                 ->name('dashboard');
 
-            /**
-             * ✅ SOLICITAÇÕES DE OWNERS (CORRETO)
-             */
             Route::get('solicitacoes-owners', [SolicitacaoOwnerController::class, 'index'])
                 ->name('solicitacoes_owners.index');
 
@@ -143,10 +103,6 @@ Route::middleware('auth')->group(function () {
             Route::post('solicitacoes-owners/{solicitacao}/rejeitar', [SolicitacaoOwnerController::class, 'rejeitar'])
                 ->name('solicitacoes_owners.rejeitar');
 
-            /**
-             * APPROVALS ANTIGOS (Owner/Venue diretos)
-             * (podes remover owners daqui depois)
-             */
             Route::get('approvals/owners', [ApprovalController::class, 'owners'])
                 ->name('approvals.owners');
 
@@ -166,9 +122,6 @@ Route::middleware('auth')->group(function () {
                 ->name('approvals.rejectVenue');
         });
 
-    /**
-     * PROPRIETÁRIO
-     */
     Route::prefix('proprietario')
         ->name('proprietario.')
         ->middleware(\App\Http\Middleware\RoleMiddleware::class . ':PROPRIETARIO')
@@ -180,9 +133,6 @@ Route::middleware('auth')->group(function () {
             Route::resource('venues', ProprietarioVenueController::class);
         });
 
-    /**
-     * CLIENTE
-     */
     Route::prefix('cliente')
         ->name('cliente.')
         ->middleware(\App\Http\Middleware\RoleMiddleware::class . ':CLIENTE')
