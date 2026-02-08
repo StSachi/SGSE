@@ -4,7 +4,6 @@
 <div class="max-w-5xl mx-auto p-4">
     <h1 class="text-2xl font-bold mb-4">Solicitações de Proprietários</h1>
 
-    {{-- Credenciais (aparecem 1 vez após aprovar) --}}
     @if(session('credenciais_owner'))
         <div class="bg-yellow-100 text-yellow-900 p-3 rounded mb-4">
             <strong>Credenciais do Proprietário (copiar e enviar):</strong><br>
@@ -13,7 +12,6 @@
         </div>
     @endif
 
-    {{-- Mensagens --}}
     @if(session('success'))
         <div class="bg-green-100 text-green-800 p-2 mb-4 rounded">
             {{ session('success') }}
@@ -46,16 +44,16 @@
                             Local: <span class="text-gray-700">{{ $s->provincia ?? '—' }}{{ $s->municipio ? ' / '.$s->municipio : '' }}</span>
                         </div>
 
-                        <div class="mt-2">
-                            @php
-                                $badge = match($s->estado) {
-                                    'PENDENTE'  => 'bg-yellow-100 text-yellow-800',
-                                    'APROVADA'  => 'bg-green-100 text-green-800',
-                                    'REJEITADA' => 'bg-red-100 text-red-800',
-                                    default    => 'bg-gray-100 text-gray-700',
-                                };
-                            @endphp
+                        @php
+                            $badge = match($s->estado) {
+                                'PENDENTE'  => 'bg-yellow-100 text-yellow-800',
+                                'APROVADA'  => 'bg-green-100 text-green-800',
+                                'REJEITADA' => 'bg-red-100 text-red-800',
+                                default     => 'bg-gray-100 text-gray-700',
+                            };
+                        @endphp
 
+                        <div class="mt-2">
                             <span class="inline-flex px-2 py-1 rounded text-xs font-semibold {{ $badge }}">
                                 {{ $s->estado }}
                             </span>
@@ -97,7 +95,6 @@
         @endforelse
     </div>
 
-    {{-- Paginação --}}
     <div class="mt-4">
         {{ $solicitacoes->links() }}
     </div>
